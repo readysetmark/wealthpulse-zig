@@ -71,17 +71,17 @@ const Scanner = struct {
     }
 
     fn expect(self: *Scanner, character: u8) void {
-        self.advance();
         if (self.current == character) {
             self.advance();
         }
         else {
-            std.log.err("(Line {}) Expecting '{c}' but found: {}", .{self.line, character, self.current});
+            std.log.err("(Line {}) Expecting '{c}' but found: {c}", .{self.line, character, self.current});
         }
     }
 
     fn price(self: *Scanner) void {
         std.log.debug("token: {} {s}", .{TokenType.PriceSentinel, self.source[self.token_start..self.index]});
+        self.advance();
         self.expect(' ');
         self.date();
         self.expect(' ');
@@ -89,6 +89,30 @@ const Scanner = struct {
 
     fn date(self: *Scanner) void {
         // yyyy-MM-dd
-        std.log.debug("Expecting number, have: {c}", .{self.current});
+        self.token_start = self.index - 1;
+        comptime var i = 0;    
+        inline while (i < 4) : (i += 1) {
+            self.number();
+        }
+        self.expect('-');
+        i = 0;
+        inline while (i < 2) : (i += 1) {
+            self.number();
+        }
+        self.expect('-');
+        i = 0;
+        inline while (i < 2) : (i += 1) {
+            self.number();
+        }
+        std.log.debug("token: {} {s}", .{TokenType.Date, self.source[self.token_start..self.index]});
+    }
+
+    fn number(self: *Scanner) void {
+        if (self.current >= '0' and self.current <= '9') {
+            self.advance();
+        }
+        else {
+            std.log.err("(Line {}) Expecting number but found: {c}", .{self.line, self.current});
+        }
     }
 };
