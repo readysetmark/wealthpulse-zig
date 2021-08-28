@@ -33,8 +33,5 @@ const scanner = @import("./scanner.zig");
 
 
 pub fn main() anyerror!void {
-    var priceScanner = scanner.Scanner{
-        .source = "P 2021-08-28 \"WP\" $25.4400",
-    };
-    priceScanner.scanTokens();
+    scanner.scanTokens("P 2021-08-28 \"WP\" $25.4400");
 }

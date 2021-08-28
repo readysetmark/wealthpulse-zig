@@ -1,5 +1,17 @@
 const std = @import("std");
 
+// Public 
+
+pub fn scanTokens(source: []const u8) void {
+    var priceScanner = Scanner{
+        .source = source,
+    };
+    priceScanner.scanTokens();
+}
+
+
+// Private
+
 const PriceSentinelCharacter = 'P';
 
 const TokenType = enum {
@@ -19,9 +31,8 @@ const Token = struct {
 
 // TODO: Set up some unit tests for good and bad Price strings!
 // TODO: Need a return type!
-// TODO: Make scanTokens() take a buffer and then make Scanner struct private ... users of the scanner shouldn't need to know the details of the struct!
 
-pub const Scanner = struct {
+const Scanner = struct {
     source: []const u8,
     // TODO: need tokens list that we build up
     current: u8 = undefined,
@@ -29,7 +40,7 @@ pub const Scanner = struct {
     index: usize = 0,
     line: usize = 1,
 
-    pub fn scanTokens(self: *Scanner) void {
+    fn scanTokens(self: *Scanner) void {
         // TODO: Need better error handling
         std.log.debug("Parsing text (length {}): {s}", .{self.source.len, self.source});
 
@@ -78,5 +89,6 @@ pub const Scanner = struct {
 
     fn date(self: *Scanner) void {
         // yyyy-MM-dd
+        std.log.debug("Expecting number, have: {c}", .{self.current});
     }
 };
