@@ -1,5 +1,6 @@
 const std = @import("std");
 const process = std.process;
+const fs = std.fs;
 
 pub fn main() anyerror!void {
     // TODO: Revisit memory allocator strategy. Using arena for now
@@ -8,7 +9,21 @@ pub fn main() anyerror!void {
     defer arena.deinit();
     const allocator = &arena.allocator;
 
-    const ledgerFile = try process.getEnvVarOwned(allocator, "LEDGER_FILE");
+    // Get path to ledger file from environment variable
+    const ledgerFilePath = try process.getEnvVarOwned(allocator, "LEDGER_FILE");
+    std.log.info("LEDGER_FILE: {s}", .{ledgerFilePath});
 
-    std.log.info("LEDGER_FILE: {s}", .{ledgerFile});
+    // Open the file
+    const ledgerFile = try fs.openFileAbsolute(ledgerFilePath, fs.File.OpenFlags{
+        .read = true,
+        .write = false,
+        .lock = fs.File.Lock.None,
+        });
+    defer ledgerFile.close();
+
+    // Read all data from file
+    // TODO: Should do this as a buffer/stream instead?
+    const data = try ledgerFile.readToEndAlloc(allocator, 100000000);
+
+    std.log.info("Opened file and read {} bytes", .{data.len});
 }
