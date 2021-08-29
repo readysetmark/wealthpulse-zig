@@ -1,5 +1,6 @@
 const std = @import("std");
 const scanner = @import("./scanner.zig");
+const ArenaAllocator = std.heap.ArenaAllocator;
 // const process = std.process;
 // const fs = std.fs;
 
@@ -33,5 +34,9 @@ const scanner = @import("./scanner.zig");
 
 
 pub fn main() anyerror!void {
-    scanner.scanTokens("P 2021-08-28 \"WP\" $25.4400");
+    var arena  = ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = &arena.allocator;
+
+    try scanner.scanTokens(allocator, "P 2021-08-28 \"WP\" $25.4400");
 }

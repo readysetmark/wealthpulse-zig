@@ -1,12 +1,17 @@
 const std = @import("std");
+const ArrayList = std.ArrayList;
+const Allocator = std.mem.Allocator;
 
 // Public 
 
-pub fn scanTokens(source: []const u8) void {
+// TODO: Set up some unit tests for good and bad Price strings!
+// TODO: Need a return type!
+pub fn scanTokens(allocator: *Allocator, source: []const u8) !void {
     var priceScanner = Scanner{
         .source = source,
+        .tokens = ArrayList(Token).init(allocator),
     };
-    priceScanner.scanTokens();
+    try priceScanner.scanTokens();
 }
 
 
@@ -27,20 +32,22 @@ const Token = struct {
     token_type: TokenType,
     text: []const u8,
     line: usize,
-};
 
-// TODO: Set up some unit tests for good and bad Price strings!
-// TODO: Need a return type!
+    fn printDebug(self: *const Token) void {
+        // TODO: can I use std.fmt.format to produce a string instead?
+        std.log.debug("Token: (Line {}) {} '{s}'", .{self.line, self.token_type, self.text});
+    }
+};
 
 const Scanner = struct {
     source: []const u8,
-    // TODO: need tokens list that we build up
+    tokens: ArrayList(Token),
     current: u8 = undefined,
     token_start: usize = 0,
     index: usize = 0,
     line: usize = 1,
 
-    fn scanTokens(self: *Scanner) void {
+    fn scanTokens(self: *Scanner) !void {
         // TODO: Need better error handling
         std.log.debug("Parsing text (length {}): {s}", .{self.source.len, self.source});
 
@@ -52,7 +59,7 @@ const Scanner = struct {
             self.advance();
             
             if (self.current == PriceSentinelCharacter) {
-                self.price();
+                try self.price();
             }
             else {
                 std.log.err("(Line {}) Expecting '{c}' but found: {}", .{self.line, PriceSentinelCharacter, self.current});
@@ -62,7 +69,16 @@ const Scanner = struct {
             self.index = self.source.len;
         }
 
-        std.log.debug("token: {}", .{TokenType.Eof});
+        // TODO: Do I even need an EOF token?
+        try self.tokens.append(Token{
+            .token_type = TokenType.Eof,
+            .text = "", // TODO: Haaaack?
+            .line = self.line,
+        });
+
+        for (self.tokens.items) |token| {
+            token.printDebug();
+        }
     }
 
     fn advance(self: *Scanner) void {
@@ -79,15 +95,19 @@ const Scanner = struct {
         }
     }
 
-    fn price(self: *Scanner) void {
-        std.log.debug("token: {} {s}", .{TokenType.PriceSentinel, self.source[self.token_start..self.index]});
+    fn price(self: *Scanner) !void {
+        try self.tokens.append(Token{
+            .token_type = TokenType.PriceSentinel,
+            .text = self.source[self.token_start..self.index],
+            .line = self.line,
+        });
         self.advance();
         self.expect(' ');
-        self.date();
+        try self.date();
         self.expect(' ');
     }
 
-    fn date(self: *Scanner) void {
+    fn date(self: *Scanner) !void {
         // yyyy-MM-dd
         self.token_start = self.index - 1;
         comptime var i = 0;    
@@ -104,7 +124,12 @@ const Scanner = struct {
         inline while (i < 2) : (i += 1) {
             self.number();
         }
-        std.log.debug("token: {} {s}", .{TokenType.Date, self.source[self.token_start..self.index]});
+
+        try self.tokens.append(Token{
+            .token_type = TokenType.Date,
+            .text = self.source[self.token_start..self.index],
+            .line = self.line,
+        });
     }
 
     fn number(self: *Scanner) void {
