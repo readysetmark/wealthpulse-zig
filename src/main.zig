@@ -36,7 +36,7 @@ const ArenaAllocator = std.heap.ArenaAllocator;
 pub fn main() anyerror!void {
     var arena  = ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
-    const allocator = &arena.allocator;
+    const allocator = arena.allocator();
 
-    try scanner.scanTokens(allocator, "P 2021-08-28 \"WP\" $25.4400");
+    try scanner.scanTokens(allocator, "P 2021-08-28 \"WP\" $25.4400\r\nP 2021-08-29 \"WP\" $26.2300\r\nP 2022-08-21 \"WP\" $24.2800\r\n");
 }

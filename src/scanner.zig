@@ -4,12 +4,12 @@ const Allocator = std.mem.Allocator;
 
 // Public 
 
-// TODO: Parse a series of price entries!
-// TODO: Refactoring / simplifying!
+// Scan source string for tokens
 // TODO: Set up some unit tests for good and bad Price strings!
-// TODO: Need a return type!
-
-pub fn scanTokens(allocator: *Allocator, source: []const u8) !void {
+// TODO: Need a return type! (see section 4.1)
+// TODO: Parsing price file vs ledger file!
+pub fn scanTokens(allocator: Allocator, source: []const u8) !void {
+    // TODO: Allocating here, need to deallocate somewhere!
     var priceScanner = Scanner{
         .source = source,
         .tokens = ArrayList(Token).init(allocator),
@@ -22,6 +22,8 @@ pub fn scanTokens(allocator: *Allocator, source: []const u8) !void {
 
 const PriceSentinelCharacter = 'P';
 
+// Types of tokens we may find in the files we parse
+// TODO: When parsing ledger vs price file, consider whether it makes sense to make those distinct enums?
 const TokenType = enum {
     PriceSentinel,
     DateYear,
@@ -33,13 +35,17 @@ const TokenType = enum {
     EndOfFile,
 };
 
+// For keeping track of information about a token
 const Token = struct {
     token_type: TokenType,
     text: ?[]const u8,
     line: usize,
 
+    // TODO: Make a "constructor"? Not sure if that's a thing in Zig though
+
     fn printDebug(self: *const Token) void {
         // TODO: can I use std.fmt.format to produce a string instead?
+        // ... or std.io.Writer interface to print to any writer? (need to understand Zig interfaces)
         if (self.text == null) {
             std.log.debug("Token: (Line {}) {}", .{self.line, self.token_type});
         } else {
@@ -48,7 +54,7 @@ const Token = struct {
     }
 };
 
-
+// The scanner engine
 const Scanner = struct {
     source: []const u8,
     tokens: ArrayList(Token),
@@ -57,25 +63,37 @@ const Scanner = struct {
     index: usize = 0,
     line: usize = 1,
 
+    // Works its way through the source file, adding tokens until it runs out of characters
     fn scanTokens(self: *Scanner) !void {
-        // TODO: Need better error handling
+        // TODO: Need better error handling (see section 4.1.1)
+        // TODO: Probably don't want to log self.source when I start testing with real files..!
         std.log.debug("Parsing text (length {}): {s}", .{self.source.len, self.source});
 
         while (self.index < self.source.len) {
+            // I think I've deviated from "Crafting Interpreters" here because I'm not parsing a programming language,
+            // but instead a data file format... so as soon as I identify a token that starts a section, I may as well
+            // expect to parse the rest of the section...
+            // I guess I'm not sure yet if this is good idea or a naive one.
+            // I think I'd have to have a lot more tokens if I followed the book more closely?
+            // But maybe it'll make error messages harder?
+
             // Start of new token
             self.token_start = self.index;
 
-            // TODO: wrap this in a scanToken() ??
             self.advance();
             
             if (self.current == PriceSentinelCharacter) {
                 try self.price();
+            } else if (self.current == '\r') {
+                // do nothing
+            } else if (self.current == '\n') {
+                self.line += 1;
             } else {
                 std.log.err("(Line {}) Expecting '{c}' but found: {}", .{self.line, PriceSentinelCharacter, self.current});
             }
 
-            // Jump to the end to short-circuit parsing the rest!
-            self.index = self.source.len;
+            // TEMPORARY: Jump to the end to short-circuit parsing the rest!
+            //self.index = self.source.len;
         }
 
         // TODO: Do I even need an EOF token?
@@ -90,9 +108,14 @@ const Scanner = struct {
         }
     }
 
+    // Helpers
+
+    // read the next token into `current` and advance `index`
+    // if reached the end of source, will set `current` to 0
     fn advance(self: *Scanner) void {
         if (self.index >= self.source.len)
         {
+            // reached the end of the source
             self.current = 0;
             self.index = self.source.len + 1;
         } else {
@@ -101,6 +124,7 @@ const Scanner = struct {
         }
     }
 
+    // test current character, and advance if a match
     fn expect(self: *Scanner, character: u8) void {
         if (self.current == character) {
             self.advance();
@@ -109,6 +133,9 @@ const Scanner = struct {
         }
     }
 
+    // Token Parsers
+
+    // Parse a price entry (date, symbol, price), emitting tokens as we go
     fn price(self: *Scanner) !void {
         try self.tokens.append(Token{
             .token_type = TokenType.PriceSentinel,
@@ -124,6 +151,8 @@ const Scanner = struct {
         try self.amount();
     }
 
+    // Parse date in yyyy-MM-dd format
+    // For now, emit a token for each component (year, month, day)
     fn date(self: *Scanner) !void {
         // yyyy-MM-dd
         self.token_start = self.index - 1;
@@ -223,7 +252,7 @@ const Scanner = struct {
         }
 
         try self.tokens.append(Token{
-            .token_type = TokenType.Symbol,
+            .token_type = TokenType.Quantity,
             .text = self.source[self.token_start..self.index-1],
             .line = self.line,
         });
