@@ -54,6 +54,16 @@ const Token = struct {
     }
 };
 
+// THINKING: Would like the scanner to be less "stateful"
+// I kind of liked the engine from the go version, but I didn't like how the individual parser
+// pieces needed to know what's next, since it made them less flexible... as in harder to reuse
+// in a different context (e.g. date as part of a price entry vs date as part of a journal entry)
+
+// Since the price file is the simplest to parse, now's the time to figure out the pattern
+// [ ] parse the real price file
+// [ ] experiment with different versions of the scanner
+// [ ] get error handling right!
+
 // The scanner engine
 const Scanner = struct {
     source: []const u8,
